@@ -12,6 +12,7 @@ const {
 } = require('express/lib/application');
 const port = process.env.PORT || 5000;
 require('dotenv').config()
+const stripe = require('stripe')(process.env.STRIP_SECRET_KEY)
 
 // Middleware
 app.use(express.json())
@@ -75,6 +76,21 @@ async function run() {
             }
 
         })
+
+
+        app.post('/create-payment-intent',async(req,res)=>{
+            const order = req.body;
+            const price = order.totalPrice 
+            console.log(price)
+            const amount = parseInt(price)*100;
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount : amount,
+              currency: 'inr',
+              payment_method_types:['card']
+            });
+            res.send({clientSecret:paymentIntent.client_secret})
+          })
+
 
         app.get('/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
@@ -157,11 +173,19 @@ async function run() {
             res.send(result)
         })
 
+        app.get('/orders', async (req, res) => {
+            const query = {};
+            const orders = await ordersCollection.find(query).toArray();
+            res.send(orders);
+        })
+
         app.post('/orders', async (req, res) => {
             const myOrders = req.body;
             const result = await ordersCollection.insertOne(myOrders);
             res.send(result);
         })
+
+        
 
         app.get('/orders/:email', async (req, res) => {
             const email = req.params.email;
@@ -170,6 +194,7 @@ async function run() {
             res.send(myOrders);
         })
 
+        
         app.delete('/orders/:id', async (req, res) => {
             const id = req.params.id;
             const query = {
@@ -177,6 +202,15 @@ async function run() {
             };
             const result = await ordersCollection.deleteOne(query);
             res.send(result);
+        })
+
+        app.get('/myOrders/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            };
+            const order = await ordersCollection.findOne(query);
+            res.send(order);
         })
 
         app.get('/reviews', async (req, res) => {
