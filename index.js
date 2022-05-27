@@ -12,6 +12,7 @@ const {
 } = require('express/lib/application');
 const port = process.env.PORT || 5000;
 require('dotenv').config()
+
 const stripe = require('stripe')(process.env.STRIP_SECRET_KEY)
 
 // Middleware
@@ -51,6 +52,7 @@ async function run() {
         const userCollection = client.db('Jantrick').collection('user')
         const ordersCollection = client.db('Jantrick').collection('myOrders')
         const reviewsCollection = client.db('Jantrick').collection('reviews')
+        const paymentCollection = client.db('Jantrick').collection('payment')
 
         app.put('/user/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
@@ -90,6 +92,30 @@ async function run() {
             });
             res.send({clientSecret:paymentIntent.client_secret})
           })
+
+
+          
+          app.patch('/paymentOrder/:id',async(req,res)=>{
+            const id = req.params.id;
+            const payment= req.body;
+            console.log(payment);
+            const filter = {_id:ObjectId(id)};
+            const updateDoc = {
+              $set:{
+                paid:true,
+                transactionId: payment.transactionId,
+                status:'pending'
+              }
+            }
+            const updatedOrder = await ordersCollection.updateOne(filter,updateDoc)
+            const result= await paymentCollection.insertOne(updatedOrder)
+
+            res.send(updateDoc)
+        }
+          )
+
+
+
 
 
         app.get('/admin/:email', verifyJWT, async (req, res) => {
